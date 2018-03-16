@@ -1,0 +1,153 @@
+#
+# WLST script to create a basic domain and admin server.
+#
+# Templated for Ansible
+#
+# Steve.Taylor@cu.edu Oct-2016
+#
+
+print('Load the basic template')
+selectTemplate('Basic WebLogic Server Domain')
+loadTemplates()
+
+print('Set options')
+setOption('JavaHome', '{{ java_home }}')
+setOption('ServerStartMode','prod')
+setOption('OverwriteDomain', 'true')
+
+print('Create the admin server')
+cd('/Servers/AdminServer')
+cmo.setListenAddress('{{ inventory_hostname }}')
+set('ListenPort', 7001)
+set('WeblogicPluginEnabled', true)
+cmo.setKeyStores('CustomIdentityAndJavaStandardTrust')
+cmo.setCustomIdentityKeyStoreFileName('{{ identity_keystore_file }}')
+cmo.setCustomIdentityKeyStoreType('JKS')
+cmo.setCustomIdentityKeyStorePassPhraseEncrypted('{{ keystore_password }}')
+cmo.setJavaStandardTrustKeyStorePassPhraseEncrypted('changeit')
+
+print('Set startup args')
+cd('/Servers/AdminServer')
+create('AdminServer','ServerStart')
+cd('ServerStart/AdminServer')
+set('Arguments', '-Xms2048m -Xmx2048m -Dweblogic.security.SSL.protocolVersion=TLS1')
+set('JavaVendor','Sun')
+set('JavaHome', '{{ java_home }}')
+
+print('Create the SSL side')
+cd('/Servers/AdminServer')
+create('AdminServer','SSL')
+cd('SSL/AdminServer')
+set('Enabled', 'True')
+set('ListenPort', 7002)
+
+print('Set the username/password')
+cd('/Security/base_domain/User/weblogic')
+cmo.setPassword('{{ weblogic_password }}')
+
+print('Write the domain')
+writeDomain('{{ domain_home }}')
+closeTemplate()
+
+####################################
+print('Finalize the domain')
+readDomain('{{ domain_home }}')
+
+print('Set nodemanager info for domain')
+cd('/SecurityConfiguration/{{ domain_name }}')
+cmo.setNodeManagerUsername('{{ weblogic_user }}')
+cmo.setNodeManagerPasswordEncrypted('{{ weblogic_password }}')
+
+print('Set SSL and hostname validation')
+cd('/Servers/AdminServer')
+create('AdminServer','SSL')
+cd('SSL/AdminServer')
+cmo.setServerPrivateKeyAlias('{{ inventory_hostname }}')
+cmo.setServerPrivateKeyPassPhraseEncrypted('{{ keystore_password }}')
+#cmo.setHostnameVerificationIgnored(true)
+#cmo.setHostnameVerifier(None)
+cmo.setTwoWaySSLEnabled(false)
+cmo.setClientCertificateEnforced(false)
+
+print('set authentication flags')
+cd('/SecurityConfiguration/{{ domain_name }}/Realms/myrealm')
+cd('AuthenticationProviders/DefaultAuthenticator')
+set('ControlFlag', 'SUFFICIENT')
+
+#machines are created from inventory
+{% for machine in groups['weblogic'] %}
+print('Create machine {{ machine }}')
+cd('/')
+create('{{ machine }}','UnixMachine')
+cd('Machines/{{ machine }}')
+set('PostBindGIDEnabled',false)
+set('PostBindGIDEnabled',false)
+create('{{ machine }}','NodeManager') 
+cd('NodeManager/{{ machine }}')
+set('NMType','SSL') 
+set('ListenAddress','{{ machine }}') 
+set('ListenPort',5556) 
+
+{% endfor %}
+
+#assign AdminServer to a machine... implied that the the machine name is the hostname
+cd('/Servers/AdminServer')
+set('Machine','{{ inventory_hostname }}')
+
+{% for key,value in domain.clusters.iteritems() %}
+print('Create cluster {{ key }}')
+cd('/')
+create('{{ key }}','Cluster')
+cd('/Clusters/{{ key }}')
+set('ClusterMessagingMode','unicast')
+set('TxnAffinityEnabled',false)
+set('DefaultLoadAlgorithm','round-robin')
+set('ClusterAddress','{{ value.addresses | join(',') }}')
+
+{% endfor %}
+updateDomain()
+closeDomain()
+
+###############################
+#### create servers
+readDomain('{{ domain_home }}')
+{% for key,value in domain.servers.iteritems() %}
+print('Create server {{ key }}')
+cd('/')
+create('{{ key }}','Server')
+cd('/Servers/{{ key }}')
+set('ListenAddress', '{{ value.listen_address }}')
+set('ListenPort', {{ value.listen_port }})
+set('WeblogicPluginEnabled', true)
+set('KeyStores','CustomIdentityAndJavaStandardTrust')
+set('CustomIdentityKeyStoreFileName','{{ identity_keystore_file }}')
+set('CustomIdentityKeyStoreType','JKS')
+set('CustomIdentityKeyStorePassPhraseEncrypted','{{ keystore_password }}')
+set('JavaStandardTrustKeyStorePassPhraseEncrypted','changeit')
+set('Machine','{{ value.machine }}')
+set('Cluster','{{ value.cluster }}')
+
+create('{{ key }}','ServerStart')
+cd('ServerStart/{{ key }}')
+set('Arguments', '-Xms3072m -Xmx3072m -Dweblogic.security.SSL.protocolVersion=TLS1')
+set('JavaVendor','Sun')
+set('JavaHome', '{{ java_home }}')
+  
+cd('/Servers/{{ key }}')
+create('{{ key }}','SSL')
+cd('SSL/{{ key }}')
+set('Enabled', 'True')
+set('ListenPort', {{ value.listen_port_ssl }})
+set('ServerPrivateKeyAlias','{{ value.machine }}')
+set('ServerPrivateKeyPassPhraseEncrypted','{{ keystore_password }}')
+set('TwoWaySSLEnabled',false)
+set('ClientCertificateEnforced',false)
+set('AcceptKssDemoCertsEnabled',false)
+ 
+{% endfor %}
+
+updateDomain()
+closeDomain()
+
+exit()
+
