@@ -1,8 +1,8 @@
 ---
 
-  - hosts: admin
+  - hosts: ubuntu
     become: yes
-    become_user: oracle
+    become_user: weblogic
     vars:
       stop_files:
         - stop-managed
@@ -14,10 +14,10 @@
         with_items: stop_files
 
       - name: Stop the managed server(s)
-        command: "{{ oracle_home }}/oracle_common/common/bin/wlst.sh /home/oracle/stop-managed.py"
+        command: "{{ oracle_home }}/oracle_common/common/bin/wlst.sh /home/weblogic/stop-managed.py"
 
       - name: Stop the admin server(s)
-        command: "{{ oracle_home }}/oracle_common/common/bin/wlst.sh /home/oracle/stop-admin.py"
+        command: "{{ oracle_home }}/oracle_common/common/bin/wlst.sh /home/weblogic/stop-admin.py"
 
       - file: path=/home/oracle/{{ item }}.py state=absent
         with_items: stop_files
