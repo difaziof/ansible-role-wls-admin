@@ -10,5 +10,5 @@
     state: directory
 
 - include: create-domain.yml
-  become_user: oracle
+  become_user: weblogic
 
