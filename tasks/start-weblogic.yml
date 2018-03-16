@@ -13,10 +13,10 @@
         with_items: start_files
 
       - name: Start the admin server
-        command: "{{ oracle_home }}/oracle_common/common/bin/wlst.sh /home/oracle/start-admin.py"
+        command: "{{ oracle_home }}/oracle_common/common/bin/wlst.sh /home/weblogic/start-admin.py"
 
       - name: Start the managed server(s)
-        command: "{{ oracle_home }}/oracle_common/common/bin/wlst.sh /home/oracle/start-managed.py"
+        command: "{{ oracle_home }}/oracle_common/common/bin/wlst.sh /home/weblogic/start-managed.py"
 
-      - file: path=/home/oracle/{{ item }}.py state=absent
+      - file: path=/home/weblogic/{{ item }}.py state=absent
         with_items: start_files
