@@ -4,8 +4,8 @@ oracle_user: weblogic
 oracle_group: weblogic 
 java_home: /usr/bin/java
 weblogic_user: weblogic
-oracle_base: /opt/oracle
-domain_base: /home/oracle
+oracle_base: /opt/weblogic
+domain_base: /home/weblogic
 mw_home: "{{ oracle_base }}/middleware"
 oracle_home: "{{ mw_home }}/oracle_common"
 wl_home: "{{ mw_home }}/wlserver"
