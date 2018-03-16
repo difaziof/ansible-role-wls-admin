@@ -1,8 +1,8 @@
 ---
 
-  - hosts: admin
+  - hosts: ubuntu
     become: yes
-    become_user: oracle
+    become_user: weblogic
     vars:
       start_files:
         - start-admin
